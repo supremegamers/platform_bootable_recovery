@@ -24,7 +24,7 @@ namespace volmgr {
 namespace iso9660 {
 
 status_t Mount(const std::string& source, const std::string& target,
-        int ownerUid, int ownerGid );
+        int ownerUid, int ownerGid, const char* type);
 
 }  // namespace iso9660
 }  // namespace volmgr

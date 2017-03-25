@@ -59,7 +59,7 @@ status_t PublicVolume::readMetadata() {
     std::string label;
     status_t res = ReadMetadataUntrusted(mDevPath, mFsType, mFsUuid, label);
     // iso9660 has no UUID, we use label as UUID
-    if (mFsType == "iso9660" && mFsUuid.empty() && !label.empty()) {
+    if ((mFsType == "iso9660" || mFsType == "udf") && mFsUuid.empty() && !label.empty()) {
         std::replace(label.begin(), label.end(), ' ', '_');
         mFsUuid = label;
     }
@@ -111,8 +111,9 @@ status_t PublicVolume::doMount() {
         ret = ext4::Mount(mDevPath, getPath(), false, false, true, mMntOpts, false, true);
     } else if (mFsType == "f2fs") {
         ret = f2fs::Mount(mDevPath, getPath(), mMntOpts, false, true);
-    } else if (mFsType == "iso9660") {
-        ret = iso9660::Mount(mDevPath, getPath(), AID_MEDIA_RW, AID_MEDIA_RW);
+    } else if (mFsType == "iso9660" || mFsType == "udf") {
+        ret = iso9660::Mount(mDevPath, getPath(),
+                AID_MEDIA_RW, AID_MEDIA_RW, mFsType.c_str());
     } else if (mFsType == "ntfs") {
         ret =
             ntfs::Mount(mDevPath, getPath(), false, false, false, AID_MEDIA_RW, AID_MEDIA_RW, 0007);
