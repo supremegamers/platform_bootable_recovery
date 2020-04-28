@@ -183,7 +183,6 @@ int TextMenu::DrawItems(int x, int y, int screen_width, bool long_press) const {
   int item_container_offset = offset; // store it for drawing scrollbar on most top
 
   for (size_t i = MenuStart(); i < MenuEnd(); ++i) {
-    bool bold = false;
     if (i == selection()) {
       // Draw the highlight bar.
       draw_funcs_.SetColor(long_press ? UIElement::MENU_SEL_BG_ACTIVE : UIElement::MENU_SEL_BG);
@@ -191,11 +190,10 @@ int TextMenu::DrawItems(int x, int y, int screen_width, bool long_press) const {
       int bar_height = padding + char_height_ + padding;
       draw_funcs_.DrawHighlightBar(0, y + offset, screen_width, bar_height);
 
-      // Bold white text for the selected item.
+      // Colored text for the selected item.
       draw_funcs_.SetColor(UIElement::MENU_SEL_FG);
-      bold = true;
     }
-    offset += draw_funcs_.DrawTextLine(x, y + offset, TextItem(i), bold);
+    offset += draw_funcs_.DrawTextLine(x, y + offset, TextItem(i), false /* bold */);
 
     draw_funcs_.SetColor(UIElement::MENU);
   }
@@ -555,25 +553,39 @@ void ScreenRecoveryUI::draw_foreground_locked() {
   }
 }
 
-/* LMODroid purple: #8e44ad */
+/* recovery dark:  #6555B0
+   recovery light: #675AB5
+   fastbootd dark: #A75665
+   fastboot light: #C37281 */
 void ScreenRecoveryUI::SetColor(UIElement e) const {
   switch (e) {
     case UIElement::INFO:
       gr_color(249, 194, 0, 255);
       break;
     case UIElement::HEADER:
-      gr_color(247, 0, 6, 255);
+      if (fastbootd_logo_enabled_)
+        gr_color(0xc3, 0x72, 0x81, 255);
+      else
+        gr_color(0x67, 0x5a, 0xb5, 255);
       break;
     case UIElement::MENU:
+      gr_color(0x87, 0x61, 0xb5, 255);
+      break;
     case UIElement::MENU_SEL_BG:
-      gr_color(0xb2, 0x68, 0xd1, 255);
+    case UIElement::SCROLLBAR:
+      if (fastbootd_logo_enabled_)
+        gr_color(0xa7, 0x56, 0x65, 255);
+      else
+        gr_color(0x65, 0x55, 0xb0, 255);
       break;
     case UIElement::MENU_SEL_BG_ACTIVE:
       gr_color(0, 156, 100, 255);
       break;
     case UIElement::MENU_SEL_FG:
-    case UIElement::SCROLLBAR:
-      gr_color(0x8e, 0x44, 0xad, 255);
+      if (fastbootd_logo_enabled_)
+        gr_color(0, 0, 0, 255);
+      else
+        gr_color(0xd8, 0xd8, 0xd8, 255);
       break;
     case UIElement::LOG:
       gr_color(196, 196, 196, 255);
@@ -807,6 +819,7 @@ void ScreenRecoveryUI::draw_menu_and_text_buffer_locked(
         gr_blit(back_icon_sel_ && menu_->selection() == -1 ? back_icon_sel_.get() : back_icon_.get(),
                 0, 0, icon_w, icon_h, icon_x, icon_y);
       }
+      y += MenuItemPadding();
     } else {
       for (size_t i = 0; i < title_lines_.size(); i++) {
         y += DrawTextLine(x, y, title_lines_[i], i == 0);
