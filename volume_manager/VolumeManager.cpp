@@ -44,11 +44,10 @@ struct selabel_handle* sehandle;
 
 using android::fs_mgr::Fstab;
 using android::fs_mgr::FstabEntry;
+using android::volmgr::IsVirtioBlkDevice;
 
 static const unsigned int kMajorBlockCdrom = 11;
 static const unsigned int kMajorBlockMmc = 179;
-static const unsigned int kMajorBlockExperimentalMin = 240;
-static const unsigned int kMajorBlockExperimentalMax = 254;
 
 namespace android {
 namespace volmgr {
@@ -299,12 +298,11 @@ void VolumeManager::handleBlockEvent(NetlinkEvent* evt) {
             for (const auto& source : mDiskSources) {
                 if (source->matches(eventPath)) {
                     // For now, assume that MMC, virtio-blk (the latter is
-                    // emulator-specific; see Disk.cpp for details) and UFS card
+                    // specific to virtual platforms; see Utils.cpp for details)
                     // devices are SD, and that everything else is USB
                     int flags = source->getFlags();
                     if (major == kMajorBlockMmc || (eventPath.find("ufs") != std::string::npos) ||
-                        (IsRunningInEmulator() && major >= (int)kMajorBlockExperimentalMin &&
-                         major <= (int)kMajorBlockExperimentalMax)) {
+                        (IsVirtioBlkDevice(major))) {
                         flags |= Disk::Flags::kSd;
                     } else if (major == kMajorBlockCdrom) {
                         flags |= Disk::Flags::kCdrom;

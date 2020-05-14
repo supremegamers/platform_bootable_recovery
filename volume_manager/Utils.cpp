@@ -24,6 +24,7 @@
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <android-base/stringprintf.h>
+#include <android-base/strings.h>
 
 #include <cutils/fs.h>
 #include <cutils/probe_module.h>
@@ -61,6 +62,7 @@ char* sFsckUntrustedContext = nullptr;
 
 #include <blkid/blkid.h>
 
+static const char* kProcDevices = "/proc/devices";
 static const char* kProcFilesystems = "/proc/filesystems";
 
 status_t CreateDeviceNode(const std::string& path, dev_t dev) {
@@ -339,8 +341,39 @@ dev_t GetDevice(const std::string& path) {
     }
 }
 
-bool IsRunningInEmulator() {
-    return android::base::GetBoolProperty("ro.kernel.qemu", false);
+static unsigned int GetMajorBlockVirtioBlk() {
+    std::string devices;
+    if (!ReadFileToString(kProcDevices, &devices)) {
+        PLOG(ERROR) << "Unable to open /proc/devices";
+        return 0;
+    }
+
+    bool blockSection = false;
+    for (auto line : android::base::Split(devices, "\n")) {
+        if (line == "Block devices:") {
+            blockSection = true;
+        } else if (line == "Character devices:") {
+            blockSection = false;
+        } else if (blockSection) {
+            auto tokens = android::base::Split(line, " ");
+            if (tokens.size() == 2 && tokens[1] == "virtblk") {
+                return std::stoul(tokens[0]);
+            }
+        }
+    }
+
+    return 0;
+}
+
+bool IsVirtioBlkDevice(unsigned int major) {
+    // Most virtualized platforms expose block devices with the virtio-blk
+    // block device driver. Unfortunately, this driver does not use a fixed
+    // major number, but relies on the kernel to assign one from a specific
+    // range of block majors, which are allocated for "LOCAL/EXPERIMENAL USE"
+    // per Documentation/devices.txt. This is true even for the latest Linux
+    // kernel (4.4; see init() in drivers/block/virtio_blk.c).
+    static unsigned int kMajorBlockVirtioBlk = GetMajorBlockVirtioBlk();
+    return kMajorBlockVirtioBlk && major == kMajorBlockVirtioBlk;
 }
 
 }  // namespace volmgr

@@ -79,8 +79,8 @@ status_t WipeBlockDevice(const std::string& path);
 
 dev_t GetDevice(const std::string& path);
 
-/* Checks if Android is running in QEMU */
-bool IsRunningInEmulator();
+// Handles dynamic major assignment for virtio-block
+bool IsVirtioBlkDevice(unsigned int major);
 
 }  // namespace volmgr
 }  // namespace android
