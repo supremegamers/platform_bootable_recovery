@@ -49,6 +49,7 @@ cc_library {
 
     shared_libs: [
         "libbase",
+        "liblog",
         "libpng",
         "libz",
         "libvolume_manager",
