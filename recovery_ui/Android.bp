@@ -54,6 +54,7 @@ cc_library {
         "libbase",
         "libcutils",
         "libhidlbase",
+        "liblog",
         "libpng",
         "libutils",
         "libz",
