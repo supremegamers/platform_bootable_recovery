@@ -97,12 +97,12 @@ service console /system/bin/sh
     class core
     console
     disabled
-    user shell
+#    user shell
     group shell log readproc
     seclabel u:r:shell:s0
     setenv HOSTNAME console
 
-on init && property:ro.debuggable=1
+on init && property:ro.boot.enable_console=1
     start console
 
 service charger /system/bin/charger
