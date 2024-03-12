@@ -21,6 +21,8 @@
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 
+#include <cutils/properties.h>
+
 #include <string>
 #include <vector>
 
@@ -41,23 +43,42 @@ status_t Mount(const std::string& source, const std::string& target, bool ro, bo
     const char* c_source = source.c_str();
     const char* c_target = target.c_str();
 
-    sprintf(mountData,
-            "utf8,uid=%d,gid=%d,fmask=%o,dmask=%o,"
-            "shortname=mixed,nodev,nosuid,dirsync",
-            ownerUid, ownerGid, permMask, permMask);
+    if (property_get_bool("ro.vold.use_ntfs3", false)) {
+        sprintf(mountData,
+                "utf8,uid=%d,gid=%d,fmask=%o,dmask=%o,"
+                "shortname=mixed,nodev,nosuid,dirsync",
+                ownerUid, ownerGid, permMask, permMask);
 
-    if (!executable) strlcat(mountData, ",noexec", sizeof(mountData));
-    if (ro) strlcat(mountData, ",ro", sizeof(mountData));
-    if (remount) strlcat(mountData, ",remount", sizeof(mountData));
+        if (!executable) strlcat(mountData, ",noexec", sizeof(mountData));
+        if (ro) strlcat(mountData, ",ro", sizeof(mountData));
+        if (remount) strlcat(mountData, ",remount", sizeof(mountData));
 
-    std::vector<std::string> cmd;
-    cmd.push_back(kMountPath);
-    cmd.push_back("-o");
-    cmd.push_back(mountData);
-    cmd.push_back(c_source);
-    cmd.push_back(c_target);
+        std::vector<std::string> cmd;
+        cmd.push_back(kMountPath);
+        cmd.push_back("-o");
+        cmd.push_back(mountData);
+        cmd.push_back(c_source);
+        cmd.push_back(c_target);
 
-    return ForkExecvp(cmd);
+        return ForkExecvp(cmd);
+    } else {
+        sprintf(mountData,"utf8,uid=%d,gid=%d,fmask=%o,dmask=%o,"
+                        "shortname=mixed,nodev,nosuid,dirsync,noatime,"
+                        "noexec", ownerUid, ownerGid, permMask, permMask);
+
+        if (!executable) strlcat(mountData, ",noexec", sizeof(mountData));
+        if (ro) strlcat(mountData, ",ro", sizeof(mountData));
+        if (remount) strlcat(mountData, ",remount", sizeof(mountData));
+
+        int flags = MS_NODEV | MS_NOSUID | MS_DIRSYNC | MS_NOATIME | MS_NOEXEC | MS_RDONLY;
+        int rc = mount(c_source, c_target, "ntfs3", flags, mountData);
+        if (rc != 0) {
+            LOG(ERROR) << "ntfs Mount error";
+            errno = EIO;
+            return -1;
+        }
+        return rc;
+    }
 }
 
 }  // namespace ntfs
