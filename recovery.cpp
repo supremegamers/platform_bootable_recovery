@@ -202,6 +202,18 @@ bool ask_to_continue_downgrade(Device* device) {
   }
 }
 
+static bool ask_to_rmrf_data(Device* device) {
+  std::vector<std::string> headers{ "Would you like to use remove all files in data instead of formatting ?",
+                                     "You won't have to choose which filesystem to format, it will clean like you use rm -rf" };
+  std::vector<std::string> items{ " No, I'll format the data", " Yea sure" };
+
+  size_t chosen_item = device->GetUI()->ShowMenu(
+      headers, items, 0, true,
+      std::bind(&Device::HandleMenuKey, device, std::placeholders::_1, std::placeholders::_2));
+
+  return (chosen_item == 1);
+}
+
 static bool ask_to_wipe_data(Device* device) {
   std::vector<std::string> headers{ "Format user data?", "This includes internal storage.", "THIS CANNOT BE UNDONE!" };
   std::vector<std::string> items{ " Cancel", " Format data" };
@@ -528,9 +540,16 @@ change_menu:
       case Device::WIPE_DATA:
         save_current_log = true;
         if (ui->IsTextVisible()) {
-          if (ask_to_wipe_data(device)) {
-            WipeData(device);
-          }
+          if (android::base::GetBoolProperty("sys.recovery.data_is_part", false)) {
+            if (ask_to_rmrf_data(device)) {
+              if(ask_to_wipe_data(device)) {
+                WipeDataDir(device, true);}
+              } else {
+              if(ask_to_wipe_data(device)) {
+                WipeData(device);}}
+          } else {
+            if (ask_to_wipe_data(device)) {
+              WipeDataDir(device, true);}}
         } else {
           WipeData(device);
           return Device::NO_ACTION;

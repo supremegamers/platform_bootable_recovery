@@ -150,6 +150,61 @@ bool WipeData(Device* device) {
   return success;
 }
 
+//Basically TWRP's TWFunc::removeDir
+int removeDir(RecoveryUI* ui, const std::string path, bool skipParent) {
+  DIR *d = opendir(path.c_str());
+  int r = 0;
+  std::string new_path;
+
+  if (d == NULL) {
+    ui->Print("error_opening_strerr=Error opening: %s\n", path.c_str());
+    return -1;
+  }
+
+  if (d) {
+    struct dirent *p;
+    while (!r && (p = readdir(d))) {
+      if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
+        continue;
+      new_path = path + "/";
+      new_path.append(p->d_name);
+			if (p->d_type == DT_DIR) {
+				r = removeDir(ui,new_path, true);
+				if (!r) {
+					if (p->d_type == DT_DIR)
+						r = rmdir(new_path.c_str());
+          else
+            ui->Print("Unable to Wipe /data directory '%s'\n", new_path.c_str());
+        }
+      } else if (p->d_type == DT_REG || p->d_type == DT_LNK || p->d_type == DT_FIFO || p->d_type == DT_SOCK) {
+        r = unlink(new_path.c_str());
+        if (r != 0) {
+          ui->Print("Unable to unlink '%s'\n", new_path.c_str());
+        }
+      }
+    }
+    closedir(d);
+
+    if (!r) {
+      if (skipParent)
+        return 0;
+      else
+        r = rmdir(path.c_str());
+    }
+  }
+  ui->Print("Data wipe %s.\n", r ? "complete" : "failed");
+  return r;
+}
+
+bool WipeDataDir(Device* device, bool skipParent) {
+  RecoveryUI* ui = device->GetUI();
+  ui->Print("\n-- Wiping data...\n");
+  ui->SetBackground(RecoveryUI::ERASING);
+  ui->SetProgressType(RecoveryUI::INDETERMINATE);
+
+  return removeDir(ui, "/data", skipParent);
+}
+
 bool WipeSystem(RecoveryUI* ui, const std::function<bool()>& confirm_func) {
   if (confirm_func && !confirm_func()) {
     return false;
