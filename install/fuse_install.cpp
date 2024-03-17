@@ -32,12 +32,15 @@
 
 #include <android-base/logging.h>
 #include <android-base/strings.h>
+#include <android-base/properties.h>
 
 #include "bootloader_message/bootloader_message.h"
 #include "fuse_provider.h"
 #include "fuse_sideload.h"
 #include "install/install.h"
 #include "recovery_utils/roots.h"
+
+static constexpr const char* SDCARD_ROOT = "/data/media/0";
 
 using android::volmgr::VolumeInfo;
 using android::volmgr::VolumeManager;
@@ -199,6 +202,41 @@ InstallResult InstallWithFuseFromPath(std::string_view path, Device* device) {
     LOG(ERROR) << "Error exit from the fuse process: " << WEXITSTATUS(status);
   }
 
+  return result;
+}
+
+InstallResult ApplyFromSdcard(Device* device) {
+  bool is_data_part = android::base::GetBoolProperty("sys.recovery.data_is_part", false);
+  auto ui = device->GetUI();
+
+  if (is_data_part == true) {
+    if (ensure_path_mounted("/data") != 0) {
+      LOG(ERROR) << "\n-- Couldn't mount " << SDCARD_ROOT << ".\n";
+      return INSTALL_ERROR;
+    }
+  }
+
+  std::string path = BrowseDirectory(SDCARD_ROOT, device, ui);
+  if (path.empty()) {
+    LOG(ERROR) << "\n-- No package file selected.\n";
+    if (is_data_part == true) {
+      ensure_path_unmounted("/data");
+    }
+    return INSTALL_ERROR;
+  }
+
+  // Hint the install function to read from a block map file.
+  if (android::base::EndsWithIgnoreCase(path, ".map")) {
+    path = "@" + path;
+  }
+
+  ui->Print("\n-- Install %s ...\n", path.c_str());
+  SetSdcardUpdateBootloaderMessage();
+
+  auto result = InstallWithFuseFromPath(path, device);
+  if (is_data_part == true) {
+    ensure_path_unmounted("/data");
+  }
   return result;
 }
 

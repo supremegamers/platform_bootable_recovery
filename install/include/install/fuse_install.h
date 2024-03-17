@@ -31,4 +31,6 @@ using android::volmgr::VolumeInfo;
 // block map file with the prefix '@'; e.g. /sdcard/package.zip, @/cache/recovery/block.map.
 InstallResult InstallWithFuseFromPath(std::string_view path, Device* device);
 
+InstallResult ApplyFromSdcard(Device* device);
+
 InstallResult ApplyFromStorage(Device* device, VolumeInfo& vi);
