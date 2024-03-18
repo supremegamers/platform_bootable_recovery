@@ -38,12 +38,21 @@ static const char* kMountPath = "/sbin/mount.ntfs";
 
 status_t Mount(const std::string& source, const std::string& target, bool ro, bool remount,
                bool executable, int ownerUid, int ownerGid, int permMask) {
-    char mountData[255];
-
-    const char* c_source = source.c_str();
-    const char* c_target = target.c_str();
-
     if (property_get_bool("ro.vold.use_ntfs3", false)) {
+        auto mountData = android::base::StringPrintf(
+            "iocharset=utf8,uid=%d,gid=%d,fmask=%o,dmask=%o,force",
+                ownerUid, ownerGid, permMask, permMask);
+
+        int flags = MS_NODEV | MS_NOSUID | MS_DIRSYNC | MS_NOATIME | MS_NOEXEC | MS_RDONLY;
+        int rc = mount(source.c_str(), target.c_str(), "ntfs3", flags, mountData.c_str());
+        if (rc != 0) {
+            LOG(ERROR) << "ntfs Mount error";
+            errno = EIO;
+            return -1;
+        }
+        return rc;
+    } else {
+        char mountData[255];
         sprintf(mountData,
                 "utf8,uid=%d,gid=%d,fmask=%o,dmask=%o,"
                 "shortname=mixed,nodev,nosuid,dirsync",
@@ -57,27 +66,10 @@ status_t Mount(const std::string& source, const std::string& target, bool ro, bo
         cmd.push_back(kMountPath);
         cmd.push_back("-o");
         cmd.push_back(mountData);
-        cmd.push_back(c_source);
-        cmd.push_back(c_target);
+        cmd.push_back(source.c_str());
+        cmd.push_back(target.c_str());
 
         return ForkExecvp(cmd);
-    } else {
-        sprintf(mountData,"utf8,uid=%d,gid=%d,fmask=%o,dmask=%o,"
-                        "shortname=mixed,nodev,nosuid,dirsync,noatime,"
-                        "noexec", ownerUid, ownerGid, permMask, permMask);
-
-        if (!executable) strlcat(mountData, ",noexec", sizeof(mountData));
-        if (ro) strlcat(mountData, ",ro", sizeof(mountData));
-        if (remount) strlcat(mountData, ",remount", sizeof(mountData));
-
-        int flags = MS_NODEV | MS_NOSUID | MS_DIRSYNC | MS_NOATIME | MS_NOEXEC | MS_RDONLY;
-        int rc = mount(c_source, c_target, "ntfs3", flags, mountData);
-        if (rc != 0) {
-            LOG(ERROR) << "ntfs Mount error";
-            errno = EIO;
-            return -1;
-        }
-        return rc;
     }
 }
 
