@@ -339,8 +339,8 @@ status_t Disk::readPartitions() {
                     break;
             }
         } else if (table == Table::kGpt) {
-            if (!strcasecmp(part.guid.c_str(), kGptBasicData) ||
-                !strcasecmp(part.guid.c_str(), kGptLinuxFilesystem)) {
+            if (strcasecmp(part.guid.c_str(), kGptBasicData) ||
+                strcasecmp(part.guid.c_str(), kGptLinuxFilesystem)) {
                 createPublicVolume(partDevice);
             }
         }
