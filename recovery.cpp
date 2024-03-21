@@ -268,7 +268,7 @@ static InstallResult apply_update_menu(Device* device, Device::BuiltinAction* re
     } else if (chosen == 1) {
       status = ApplyFromSdcard(device);
     } else {
-      status = ApplyFromStorage(device, volumes[chosen - 1]);
+      status = ApplyFromStorage(device, volumes[chosen - 2]);
     }
     break;
   }
