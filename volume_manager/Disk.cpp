@@ -73,9 +73,6 @@ static const unsigned int kMajorBlockDynamicMin = 234;
 static const unsigned int kMajorBlockDynamicMax = 512;
 static const unsigned int kMajorBlockCdrom = 11;
 
-static const char* kGptBasicData = "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7";
-static const char* kGptLinuxFilesystem = "0FC63DAF-8483-4772-8E79-3D69D8477DE4";
-
 enum class Table {
     kUnknown,
     kMbr,
@@ -326,24 +323,7 @@ status_t Disk::readPartitions() {
             continue;
         }
         dev_t partDevice = makedev(major(mDevice), minor(mDevice) + part.num);
-        if (table == Table::kMbr) {
-            switch (strtol(part.type.c_str(), nullptr, 16)) {
-                case 0x00: // ISO9660
-                case 0x06:  // FAT16
-                case 0x07:  // NTFS/exFAT
-                case 0x0b:  // W95 FAT32 (LBA)
-                case 0x0c:  // W95 FAT32 (LBA)
-                case 0x0e:  // W95 FAT16 (LBA)
-                case 0x83:  // Linux EXT4/F2FS/...
-                    createPublicVolume(partDevice);
-                    break;
-            }
-        } else if (table == Table::kGpt) {
-            if (strcasecmp(part.guid.c_str(), kGptBasicData) ||
-                strcasecmp(part.guid.c_str(), kGptLinuxFilesystem)) {
-                createPublicVolume(partDevice);
-            }
-        }
+        createPublicVolume(partDevice);
     }
 
     // Ugly last ditch effort, treat entire disk as partition
